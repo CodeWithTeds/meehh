@@ -107,39 +107,23 @@ final class GoatBanner
     private static function renderTextCard(OutputInterface $output, ?string $modelName, int $width, bool $compact): void
     {
         $lines = self::buildRightLines($modelName, $compact, $output->isDecorated());
-        $cardWidth = min($width - 4, 84);
-        $border = str_repeat('─', $cardWidth);
-
-        $output->writeln(self::dim("  ╭{$border}╮"));
         foreach ($lines as $l) {
-            $vis = self::visibleLength($l);
-            $pad = max(0, $cardWidth - $vis);
-            // l already contains ANSI, we pad after
-            $output->writeln(self::dim('  │ ') . $l . str_repeat(' ', $pad) . self::dim(' │'));
+            $output->writeln('  ' . $l);
         }
-        $output->writeln(self::dim("  ╰{$border}╯"));
     }
 
     private static function renderStacked(OutputInterface $output, array $imageLines, array $rightLines, int $width, bool $decorated): void
     {
         $output->writeln('');
-
-        // Center image
         foreach ($imageLines as $line) {
             $vis = self::visibleLength($line);
             $pad = max(0, (int) (($width - $vis) / 2));
             $output->writeln(str_repeat(' ', $pad) . $line);
         }
-
         $output->writeln('');
-        $output->writeln(self::dim('  ' . str_repeat('─', min($width - 4, 70))));
-
         foreach ($rightLines as $line) {
-            // strip leading spaces for stacked centered feel? Keep indent
             $output->writeln('  ' . $line);
         }
-
-        $output->writeln(self::dim('  ' . str_repeat('─', min($width - 4, 70))));
         $output->writeln('');
     }
 
@@ -153,59 +137,25 @@ final class GoatBanner
         int $imageLinesCount
     ): void {
         $output->writeln('');
-
-        // Normalize line counts: image and right should have same count
         $count = max(count($imageLines), count($rightLines));
-        // Pad shorter
         $imageLines = array_pad($imageLines, $count, str_repeat(' ', $imageW));
         $rightLines = array_pad($rightLines, $count, '');
 
-        // Decorative top rule with title - spans width
-        $title = '  GOAT  ';
-        $ruleLen = min($width - 6, 96);
-        $rightRule = max(0, $ruleLen - mb_strlen($title) - 4);
-        $topRule = self::dim('  ╭─' . $title . str_repeat('─', $rightRule) . '╮');
-        // Only show top rule if width allows
-        if ($width >= 80) {
-            $output->writeln($topRule);
-        }
-
-        $gap = '   '; // 3 spaces between image and text
+        $gap = '   ';
         $gapVis = 3;
-
-        // For outer border style, prefix with │ and suffix with │
-        $hasBorder = $width >= 80;
+        // No box — full width, no border
+        $hasBorder = false;
+        $ruleLen = min($width - 6, 140); // wider
 
         for ($i = 0; $i < $count; $i++) {
             $left = $imageLines[$i] ?? str_repeat(' ', $imageW);
             $right = $rightLines[$i] ?? '';
-
-            // Compute actual visible width of left (rtrim in renderer may shrink it)
             $leftVis = self::visibleLength($left);
-            // Ensure right fits inside border: truncate if needed
-            $maxRight = $hasBorder ? max(10, $ruleLen - $leftVis - $gapVis - 4) : 120;
+            $maxRight = max(20, $ruleLen - $leftVis - $gapVis);
             $right = self::truncateToVisible($right, $maxRight, $decorated);
-            $rightVis = self::visibleLength($right);
-
             $lineInside = $left . $gap . $right;
-
-            if ($hasBorder) {
-                $insideVis = $leftVis + $gapVis + $rightVis;
-                $insideWidth = $ruleLen; // inside between │ and │
-                $pad = max(0, $insideWidth - $insideVis - 2); // -2 for spaces after │ and before │
-                $output->writeln(
-                    self::dim('  │ ') . $lineInside . str_repeat(' ', $pad) . self::dim(' │')
-                );
-            } else {
-                $output->writeln('  ' . $lineInside);
-            }
+            $output->writeln('  ' . $lineInside);
         }
-
-        if ($hasBorder) {
-            $bottomRule = self::dim('  ╰' . str_repeat('─', $ruleLen) . '╯');
-            $output->writeln($bottomRule);
-        }
-
         $output->writeln('');
     }
 
@@ -244,7 +194,7 @@ final class GoatBanner
         }
 
         $lines[] = '';
-        $lines[] = $dim(str_repeat('─', 52));
+        $lines[] = $dim(str_repeat('─', 72));
 
         // Owner / link
         $lines[] = $gray('by ') . $white('Prof Alex Software Dev', true) . $dim('  /  ') . $cyan('TE-AD', true) . '   ' . $dim('↗') . '  ' . $cyan('github.com/CodeWithTeds/meehh');
@@ -252,28 +202,14 @@ final class GoatBanner
 
         // Hero quote — single source of truth intro
         $lines[] = '';
-        $lines[] = $gold('🐐 ', true) . $white('Your schema is already there. Why build', true);
-        $lines[] = $white('around it manually when the structure', true) . ' ' . $gray('you’ve already defined');
-        $lines[] = $gray('could be the starting point for everything that comes next?');
-
-        if (! $compact) {
-            $lines[] = '';
-            $lines[] = $amber('✦  You give:') . '  ' . $gray("Schema::create('products', ...)") . $dim('  or  ') . $gray('ERD text');
-            $lines[] = $green('▸  You get:') . '  ' . $white('Model  •  Requests  •  Resource  •  Controller') . $dim('  •');
-            $lines[] = '         ' . $white('Service  •  Repository  •  Policy  •  Tests  •  Migration');
-        }
+        $lines[] = $gold('🐐 ', true) . $white('Your schema is already there. Why build around it manually', true);
+        $lines[] = $white('when the structure you’ve already defined could be the starting point', true) . ' ' . $gray('for everything that comes next?');
 
         $lines[] = '';
         // Command hint - highlight primary command
         $cmd = 'php artisan goat:make ' . ($modelName ?: 'Product');
         $lines[] = $cyan('❯', true) . '  ' . $white($cmd, true) . '  ' . $dim('--from=migration  --from=erd  --force');
         $lines[] = $dim('   --only=model,resource  --except=policy,test') . '   ' . $gray('PHP ' . $phpShort . '  •  Laravel 11|12|13');
-
-        // Footer tip for shell open case
-        if ($modelName === null) {
-            $lines[] = '';
-            $lines[] = $dim('Tip: add ') . $gray('php artisan goat') . $dim(' to your shell startup to see this banner on open.');
-        }
 
         return $lines;
     }
