@@ -16,7 +16,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 class {{ class }} extends Controller
 {
     public function __construct(
-        protected {{ model }}Service $service,
+        private readonly {{ model }}Service $service,
     ) {}
 
     public function index(): AnonymousResourceCollection
