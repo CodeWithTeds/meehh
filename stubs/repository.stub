@@ -1,0 +1,50 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use {{ modelNamespace }}\{{ model }};
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
+
+class {{ class }}
+{
+    public function paginate(int $perPage = 15): LengthAwarePaginator
+    {
+        return {{ model }}::query()->paginate($perPage);
+    }
+
+    public function all(): Collection
+    {
+        return {{ model }}::all();
+    }
+
+    public function findOrFail(int|string $id): {{ model }}
+    {
+        return {{ model }}::findOrFail($id);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public function create(array $data): {{ model }}
+    {
+        return {{ model }}::create($data);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public function update({{ model }} ${{ variable }}, array $data): {{ model }}
+    {
+        ${{ variable }}->update($data);
+
+        return ${{ variable }}->refresh();
+    }
+
+    public function delete({{ model }} ${{ variable }}): bool
+    {
+        return (bool) ${{ variable }}->delete();
+    }
+}

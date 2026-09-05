@@ -1,0 +1,58 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use App\Http\Controllers\Controller;
+use {{ modelNamespace }}\{{ model }};
+use {{ requestNamespace }}\Store{{ model }}Request;
+use {{ requestNamespace }}\Update{{ model }}Request;
+use {{ resourceNamespace }}\{{ model }}Resource;
+use {{ serviceNamespace }}\{{ model }}Service;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+
+class {{ class }} extends Controller
+{
+    public function __construct(
+        protected {{ model }}Service $service,
+    ) {}
+
+    public function index(): AnonymousResourceCollection
+    {
+        $items = $this->service->paginate();
+
+        return {{ model }}Resource::collection($items);
+    }
+
+    public function store(Store{{ model }}Request $request): JsonResponse
+    {
+        $model = $this->service->create($request->validated());
+
+        return (new {{ model }}Resource($model))
+            ->response()
+            ->setStatusCode(201);
+    }
+
+    public function show({{ model }} ${{ variable }}): {{ model }}Resource
+    {
+        $model = $this->service->find(${{ variable }}->getKey());
+
+        return new {{ model }}Resource($model);
+    }
+
+    public function update(Update{{ model }}Request $request, {{ model }} ${{ variable }}): {{ model }}Resource
+    {
+        $model = $this->service->update(${{ variable }}, $request->validated());
+
+        return new {{ model }}Resource($model);
+    }
+
+    public function destroy({{ model }} ${{ variable }}): JsonResponse
+    {
+        $this->service->delete(${{ variable }});
+
+        return response()->json(null, 204);
+    }
+}

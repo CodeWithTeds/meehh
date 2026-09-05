@@ -1,0 +1,71 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use {{ modelNamespace }}\{{ model }};
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class {{ class }} extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_can_list_{{ table }}(): void
+    {
+        {{ model }}::factory()->count(3)->create();
+
+        $response = $this->getJson('/api/{{ table }}');
+
+        $response->assertOk()
+            ->assertJsonStructure(['data']);
+    }
+
+    public function test_can_create_{{ singular }}(): void
+    {
+        $payload = [
+{{ factoryPayload }}
+        ];
+
+        $response = $this->postJson('/api/{{ table }}', $payload);
+
+        $response->assertCreated();
+        $this->assertDatabaseHas('{{ table }}', [
+{{ assertPayload }}
+        ]);
+    }
+
+    public function test_can_show_{{ singular }}(): void
+    {
+        $model = {{ model }}::factory()->create();
+
+        $response = $this->getJson("/api/{{ table }}/{$model->getKey()}");
+
+        $response->assertOk()
+            ->assertJsonFragment(['id' => $model->getKey()]);
+    }
+
+    public function test_can_update_{{ singular }}(): void
+    {
+        $model = {{ model }}::factory()->create();
+
+        $payload = [
+{{ factoryPayload }}
+        ];
+
+        $response = $this->putJson("/api/{{ table }}/{$model->getKey()}", $payload);
+
+        $response->assertOk();
+    }
+
+    public function test_can_delete_{{ singular }}(): void
+    {
+        $model = {{ model }}::factory()->create();
+
+        $response = $this->deleteJson("/api/{{ table }}/{$model->getKey()}");
+
+        $response->assertNoContent();
+        $this->assertDatabaseMissing('{{ table }}', ['id' => $model->getKey()]);
+    }
+}

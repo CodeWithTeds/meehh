@@ -1,0 +1,27 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+{{ softDeletesImport }}{{ relationshipsImports }}
+
+class {{ class }} extends Model
+{
+    use HasFactory{{ softDeletesTrait }};
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
+    protected $fillable = [
+{{ fillable }}
+    ];
+
+{{ casts }}
+
+{{ relationships }}
+}

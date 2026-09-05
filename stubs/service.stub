@@ -1,0 +1,53 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use {{ modelNamespace }}\{{ model }};
+use {{ repositoryNamespace }}\{{ model }}Repository;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
+
+class {{ class }}
+{
+    public function __construct(
+        protected {{ model }}Repository $repository,
+    ) {}
+
+    public function paginate(int $perPage = 15): LengthAwarePaginator
+    {
+        return $this->repository->paginate($perPage);
+    }
+
+    public function all(): Collection
+    {
+        return $this->repository->all();
+    }
+
+    public function find(int|string $id): {{ model }}
+    {
+        return $this->repository->findOrFail($id);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public function create(array $data): {{ model }}
+    {
+        return $this->repository->create($data);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public function update({{ model }} ${{ variable }}, array $data): {{ model }}
+    {
+        return $this->repository->update(${{ variable }}, $data);
+    }
+
+    public function delete({{ model }} ${{ variable }}): bool
+    {
+        return $this->repository->delete(${{ variable }});
+    }
+}
