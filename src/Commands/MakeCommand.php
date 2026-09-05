@@ -18,6 +18,7 @@ use Goat\Parsers\MigrationParser;
 use Goat\Schema\GoatSchema;
 use Goat\Schema\GoatTable;
 use Goat\Support\FileWriter;
+use Goat\Support\GoatBanner;
 use Goat\Support\GoatConfig;
 use Goat\Support\NameResolver;
 use Goat\Support\StubRenderer;
@@ -56,21 +57,22 @@ class MakeCommand extends Command
         StubRenderer $stubs,
         FileWriter $writer,
     ): int {
-        $this->displayHeader();
-
         $name = (string) $this->argument('name');
         $from = $this->option('from');
         $only = $this->option('only');
         $except = $this->option('except');
         $force = (bool) $this->option('force');
 
-        // Validate name
+        // Validate name first so banner can show canonical model name
         try {
             $modelName = NameResolver::ensureValidPhpClassName($name);
         } catch (\InvalidArgumentException $e) {
             $this->components->error($e->getMessage());
             return self::FAILURE;
         }
+
+        // Modern banner: image (meeeh.png) on the left, intro card on the right
+        $this->displayHeader($modelName);
 
         // Validate --only / --except
         $onlyList = $this->parseListOption($only);
@@ -299,11 +301,16 @@ class MakeCommand extends Command
         return self::SUCCESS;
     }
 
-    private function displayHeader(): void
+    private function displayHeader(?string $modelName = null): void
     {
-        $this->line('');
-        $this->line('<fg=yellow>🐐 GOAT</> <fg=gray>— Laravel CRUD Generator</>');
-        $this->line('');
+        try {
+            GoatBanner::render($this->output, $modelName);
+        } catch (\Throwable) {
+            // Fallback to simple header if banner fails (e.g., missing GD, bad terminal)
+            $this->line('');
+            $this->line('<fg=yellow>🐐 GOAT</> <fg=gray>— Laravel Feature Generator • github.com/CodeWithTeds/meehh</>');
+            $this->line('');
+        }
     }
 
     /**

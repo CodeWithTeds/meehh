@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Goat;
 
+use Goat\Commands\BannerCommand;
+use Goat\Commands\GoatCommand;
 use Goat\Commands\MakeCommand;
 use Illuminate\Support\ServiceProvider;
 
@@ -14,6 +16,8 @@ final class GoatServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__ . '/../config/goat.php', 'goat');
 
         $this->app->singleton(MakeCommand::class);
+        $this->app->singleton(BannerCommand::class);
+        $this->app->singleton(GoatCommand::class);
     }
 
     public function boot(): void
@@ -21,6 +25,8 @@ final class GoatServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 MakeCommand::class,
+                BannerCommand::class,
+                GoatCommand::class,
             ]);
 
             $this->publishes([
@@ -38,6 +44,11 @@ final class GoatServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__ . '/../stubs' => resource_path('stubs/vendor/goat'),
             ], 'goat');
+
+            // Shell integration for `terminal open` banner
+            $this->publishes([
+                __DIR__ . '/../shell/goat.sh' => base_path('shell/goat.sh'),
+            ], 'goat-shell');
         }
     }
 }

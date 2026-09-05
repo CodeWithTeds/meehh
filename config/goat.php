@@ -83,4 +83,18 @@ return [
 
     'stubs_path' => resource_path('stubs/vendor/goat'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Banner
+    |--------------------------------------------------------------------------
+    |
+    | Show the modern meeeh.png + intro card when running `goat:make` or
+    | `php artisan goat`. Disable globally with `GOAT_NO_BANNER=1` env or
+    | set this to false. Supports `php artisan goat --compact` for shell
+    | startup (source shell/goat.sh in ~/.zshrc).
+    |
+    */
+
+    'banner' => env('GOAT_BANNER', true),
+
 ];
