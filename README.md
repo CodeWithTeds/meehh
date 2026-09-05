@@ -144,8 +144,40 @@ cat erd.txt | php artisan goat:make Product --from=erd --force
 php artisan goat:make Product --from=database/migrations/2024_01_01_create_products_table.php
 php artisan goat:make Product --only=model,resource,request
 php artisan goat:make Product --except=policy,test
+# custom paths — e.g. repo/admin instead of repositories/
+php artisan goat:make Hello --paths=repository=app/Repo/Admin,model=app/Domain/Models --force
+# → app/Repo/Admin/HelloRepository.php (App\Repo\Admin) + app/Domain/Models/Hello.php
+php artisan goat:make World --module=Admin --force
+# → app/Modules/Admin/Models/World.php + app/Modules/Admin/Repositories/...
+# interactive: after schema preview GOAT asks “Customize output paths?” → type per component
 ```
 </details>
+
+### 📁 Custom paths — you choose where files go
+
+No more locked `app/Repositories`. Put any artifact anywhere — per run, no config edit needed:
+
+```bash
+# single: repo/Admin instead of repositories/
+php artisan goat:make Hello --paths=repository=app/Repo/Admin --force
+# → app/Repo/Admin/HelloRepository.php (namespace App\Repo\Admin auto)
+
+# multiple: split models & repos
+php artisan goat:make Hello --paths=repository=app/Repo/Admin,model=app/Domain/Models --force
+# → app/Domain/Models/Hello.php (App\Domain\Models)
+
+# module: group everything under app/Modules/{Module}
+php artisan goat:make World --module=Admin --force
+# → app/Modules/Admin/Models/World.php
+#   app/Modules/Admin/Repositories/WorldRepository.php
+#   app/Modules/Admin/Services/WorldService.php
+#   tests/Feature/Modules/Admin/WorldTest.php
+
+# interactive: no flags → after schema GOAT asks “Customize output paths?” → y → type per component
+php artisan goat:make Product
+```
+
+`--paths` is `key=path` comma-separated (`model,migration,request,resource,controller,service,repository,policy,test`). Paths can be absolute or `app/...` relative — namespaces inferred automatically (`app/Repo/Admin` → `App\Repo\Admin`). For permanent change, publish `config/goat.php`.
 
 ---
 

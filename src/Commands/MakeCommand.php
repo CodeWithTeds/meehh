@@ -35,6 +35,8 @@ class MakeCommand extends Command
                             {--from= : Source type: migration, erd, or path to existing migration file}
                             {--only= : Comma-separated list of components to generate (model,migration,request,resource,controller,service,repository,policy,test)}
                             {--except= : Comma-separated list of components to exclude}
+                            {--paths= : Comma-separated custom paths, e.g. repository=app/Repositories/Admin,model=app/Domain/Models}
+                            {--module= : Module prefix, e.g. Admin → app/Modules/Admin/...}
                             {--force : Overwrite existing files}';
 
     protected $description = 'Generate Laravel CRUD artifacts from a migration or ERD';
@@ -69,6 +71,20 @@ class MakeCommand extends Command
         } catch (\InvalidArgumentException $e) {
             $this->components->error($e->getMessage());
             return self::FAILURE;
+        }
+
+        // Clear previous runtime path overrides
+        GoatConfig::clear();
+
+        // Handle --paths / --module early (so they affect path resolution and banner hints)
+        $pathsOption = $this->option('paths');
+        $moduleOption = $this->option('module');
+        if (($pathsOption !== null && trim((string) $pathsOption) !== '') || ($moduleOption !== null && trim((string) $moduleOption) !== '')) {
+            $err = $this->applyCustomPaths($pathsOption ? (string) $pathsOption : null, $moduleOption ? (string) $moduleOption : null);
+            if ($err !== true) {
+                $this->components->error($err);
+                return self::FAILURE;
+            }
         }
 
         // Modern banner: image (meeeh.png) on the left, intro card on the right
@@ -210,6 +226,11 @@ class MakeCommand extends Command
             }
             $status = $enabled ? '' : ' <fg=gray>(skipped)</>';
             $this->line(" {$icon} {$label}{$status}");
+        }
+
+        // Offer interactive path customization if no --paths/--module given and running interactively
+        if ($this->input->isInteractive() && empty($pathsOption) && empty($moduleOption)) {
+            $this->promptCustomPaths($componentsToGenerate);
         }
 
         $this->line('');
@@ -609,5 +630,196 @@ class MakeCommand extends Command
             };
             $this->line(" <fg=green>✓</> {$label} <fg=gray>{$res['path']}</>");
         }
+    }
+
+    /**
+     * Apply --paths and --module overrides.
+     * @return true|string true on success, error message on failure
+     */
+    private function applyCustomPaths(?string $pathsOption, ?string $moduleOption): true|string
+    {
+        // Handle --module first (sets defaults for all)
+        if ($moduleOption !== null && trim($moduleOption) !== '') {
+            $module = trim($moduleOption);
+            // Sanitize module name: allow alphanumeric, _, /, \
+            if (! preg_match('/^[A-Za-z0-9_\/\\\\]+$/', $module)) {
+                return "Invalid --module value [{$module}]. Use alphanumeric, e.g. Admin or Admin/Billing";
+            }
+            $module = trim($module, '/\\');
+            $moduleStudly = collect(explode('/', str_replace('\\', '/', $module)))->map(fn ($p) => Str::studly($p))->implode('/');
+            $modulePath = str_replace('/', '/', $moduleStudly); // keep slash
+            // Set paths under app/Modules/{Module}/*
+            $map = [
+                'model' => "app/Modules/{$modulePath}/Models",
+                'request' => "app/Modules/{$modulePath}/Http/Requests",
+                'resource' => "app/Modules/{$modulePath}/Http/Resources",
+                'controller' => "app/Modules/{$modulePath}/Http/Controllers",
+                'service' => "app/Modules/{$modulePath}/Services",
+                'repository' => "app/Modules/{$modulePath}/Repositories",
+                'policy' => "app/Modules/{$modulePath}/Policies",
+                'migration' => "database/migrations",
+                'test' => "tests/Feature/Modules/{$modulePath}",
+            ];
+            foreach ($map as $comp => $path) {
+                $abs = $this->resolveAbsolutePath($path);
+                GoatConfig::set("goat.paths.{$comp}", $abs);
+                // Also set namespace to match path (e.g., App\Modules\Admin\Models)
+                $ns = $this->pathToNamespace($path);
+                GoatConfig::set("goat.namespaces.{$comp}", $ns);
+            }
+        }
+
+        if ($pathsOption !== null && trim($pathsOption) !== '') {
+            $pairs = array_map('trim', explode(',', $pathsOption));
+            foreach ($pairs as $pair) {
+                if ($pair === '') continue;
+                if (! str_contains($pair, '=')) {
+                    return "Invalid --paths format [{$pair}]. Use key=path, e.g. --paths=repository=app/Repo/Admin,model=app/Domain/Models";
+                }
+                [$key, $path] = array_map('trim', explode('=', $pair, 2));
+                $key = strtolower($key);
+                if (! in_array($key, self::VALID_COMPONENTS, true)) {
+                    return "Invalid --paths key [{$key}]. Valid: " . implode(', ', self::VALID_COMPONENTS);
+                }
+                if ($path === '') {
+                    return "Empty path for [{$key}] in --paths";
+                }
+                $abs = $this->resolveAbsolutePath($path);
+                GoatConfig::set("goat.paths.{$key}", $abs);
+                // Auto-infer namespace from path (e.g., app/Repo/Admin -> App\Repo\Admin)
+                $ns = $this->pathToNamespace($path);
+                GoatConfig::set("goat.namespaces.{$key}", $ns);
+            }
+        }
+
+        return true;
+    }
+
+    private function promptCustomPaths(array $components): void
+    {
+        // Check if interactive and user wants to customize
+        try {
+            if (function_exists('Laravel\Prompts\confirm')) {
+                $want = \Laravel\Prompts\confirm('Customize output paths? (e.g., repo/admin)', default: false);
+            } else {
+                $want = $this->confirm('Customize output paths?', false);
+            }
+        } catch (\Throwable) {
+            return;
+        }
+
+        if (! $want) {
+            return;
+        }
+
+        $this->line('');
+        $this->line('<fg=gray>Leave empty to keep default. Example: app/Repositories/Admin</>');
+        $custom = [];
+        foreach ($components as $comp) {
+            $current = GoatConfig::string("goat.paths.{$comp}", '');
+            if ($current === '') {
+                // Fallback to generator default (try to infer)
+                $current = match ($comp) {
+                    'model' => function_exists('app_path') ? (function(){ try{ return \app_path('Models'); } catch(\Throwable){return 'app/Models';}})() : 'app/Models',
+                    'repository' => function_exists('app_path') ? (function(){ try{ return \app_path('Repositories'); } catch(\Throwable){return 'app/Repositories';}})() : 'app/Repositories',
+                    default => $comp,
+                };
+                // For display, show relative
+                $display = $current;
+                if (function_exists('base_path')) {
+                    try {
+                        $base = \base_path();
+                        if (str_starts_with($current, $base)) {
+                            $display = ltrim(substr($current, strlen($base)), '/');
+                        }
+                    } catch (\Throwable) {}
+                }
+            } else {
+                $display = $current;
+                // Show relative if possible
+                if (function_exists('base_path')) {
+                    try {
+                        $base = \base_path();
+                        if (str_starts_with($display, $base)) {
+                            $display = ltrim(substr($display, strlen($base)), '/');
+                        }
+                    } catch (\Throwable) {}
+                }
+            }
+
+            $answer = null;
+            try {
+                if (function_exists('Laravel\Prompts\text')) {
+                    $answer = \Laravel\Prompts\text("  {$comp} path", default: $display, hint: "e.g. app/Repositories/Admin");
+                } else {
+                    $answer = $this->ask("  {$comp} path", $display);
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+
+            $answer = trim((string) $answer);
+            if ($answer !== '' && $answer !== $display) {
+                $custom[$comp] = $answer;
+            }
+        }
+
+        if (! empty($custom)) {
+            $pairs = [];
+            foreach ($custom as $k => $v) {
+                $pairs[] = "{$k}={$v}";
+            }
+            $this->applyCustomPaths(implode(',', $pairs), null);
+            $this->line('');
+            $this->components->info('Custom paths applied:');
+            foreach ($custom as $k => $v) {
+                $this->line("  <fg=gray>{$k} → {$v}</>");
+            }
+        }
+    }
+
+    private function resolveAbsolutePath(string $path): string
+    {
+        $path = trim($path);
+        // If already absolute (starts with / or C:\), return as is
+        if (str_starts_with($path, '/') || preg_match('/^[A-Za-z]:[\\\\\\/]/', $path)) {
+            return rtrim($path, '/');
+        }
+        // If starts with app/ or database/ or tests/, resolve via base_path
+        if (function_exists('base_path')) {
+            try {
+                $base = \base_path();
+                return rtrim($base, '/') . '/' . ltrim($path, '/');
+            } catch (\Throwable) {}
+        }
+        return rtrim(getcwd() . '/' . ltrim($path, '/'), '/');
+    }
+
+    private function pathToNamespace(string $path): string
+    {
+        // Remove base_path prefix and leading app/
+        $p = $path;
+        if (function_exists('base_path')) {
+            try {
+                $base = \base_path();
+                if (str_starts_with($p, $base)) {
+                    $p = ltrim(substr($p, strlen($base)), '/');
+                }
+            } catch (\Throwable) {}
+        }
+        // Also handle getcwd fallback
+        $cwd = getcwd();
+        if ($cwd && str_starts_with($p, $cwd)) {
+            $p = ltrim(substr($p, strlen($cwd)), '/');
+        }
+        // Now p is like app/Modules/Admin/Models or app/Repositories or repo/admin
+        $p = trim($p, '/');
+        // Split and studly each segment, but handle well-known prefixes
+        $segments = explode('/', str_replace('\\', '/', $p));
+        $segments = array_map(fn ($s) => Str::studly($s), $segments);
+        // If first segment is App, keep it; otherwise ensure App prefix for app/* paths
+        // For paths like app/Repositories/Admin → App\Repositories\Admin
+        // For paths like repo/admin → Repo\Admin (keep as is, but studly)
+        return implode('\\', $segments);
     }
 }
