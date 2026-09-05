@@ -712,19 +712,22 @@ class MakeCommand extends Command
             return;
         }
 
-        $this->line('');
-        $this->line('<fg=gray>Leave empty to keep default. Example: app/Repositories/Admin</>');
         $custom = [];
         foreach ($components as $comp) {
             $current = GoatConfig::string("goat.paths.{$comp}", '');
             if ($current === '') {
-                // Fallback to generator default (try to infer)
                 $current = match ($comp) {
                     'model' => function_exists('app_path') ? (function(){ try{ return \app_path('Models'); } catch(\Throwable){return 'app/Models';}})() : 'app/Models',
                     'repository' => function_exists('app_path') ? (function(){ try{ return \app_path('Repositories'); } catch(\Throwable){return 'app/Repositories';}})() : 'app/Repositories',
+                    'service' => function_exists('app_path') ? (function(){ try{ return \app_path('Services'); } catch(\Throwable){return 'app/Services';}})() : 'app/Services',
+                    'controller' => function_exists('app_path') ? (function(){ try{ return \app_path('Http/Controllers'); } catch(\Throwable){return 'app/Http/Controllers';}})() : 'app/Http/Controllers',
+                    'request' => function_exists('app_path') ? (function(){ try{ return \app_path('Http/Requests'); } catch(\Throwable){return 'app/Http/Requests';}})() : 'app/Http/Requests',
+                    'resource' => function_exists('app_path') ? (function(){ try{ return \app_path('Http/Resources'); } catch(\Throwable){return 'app/Http/Resources';}})() : 'app/Http/Resources',
+                    'policy' => function_exists('app_path') ? (function(){ try{ return \app_path('Policies'); } catch(\Throwable){return 'app/Policies';}})() : 'app/Policies',
+                    'migration' => function_exists('database_path') ? (function(){ try{ return \database_path('migrations'); } catch(\Throwable){return 'database/migrations';}})() : 'database/migrations',
+                    'test' => function_exists('base_path') ? (function(){ try{ return \base_path('tests/Feature'); } catch(\Throwable){return 'tests/Feature';}})() : 'tests/Feature',
                     default => $comp,
                 };
-                // For display, show relative
                 $display = $current;
                 if (function_exists('base_path')) {
                     try {
@@ -736,7 +739,6 @@ class MakeCommand extends Command
                 }
             } else {
                 $display = $current;
-                // Show relative if possible
                 if (function_exists('base_path')) {
                     try {
                         $base = \base_path();
@@ -747,12 +749,26 @@ class MakeCommand extends Command
                 }
             }
 
+            $example = match ($comp) {
+                'model' => 'app/Models or app/admin/Models',
+                'repository' => 'app/Repositories/Admin or app/admin/Repositories',
+                'service' => 'app/Services/Admin',
+                'controller' => 'app/Http/Controllers/Admin',
+                'request' => 'app/Http/Requests/Admin',
+                'resource' => 'app/Http/Resources/Admin',
+                'policy' => 'app/Policies/Admin',
+                'migration' => 'database/migrations',
+                'test' => 'tests/Feature/Admin',
+                default => 'app/' . Str::studly($comp),
+            };
+            $hint = "Leave empty to keep default. Example: {$example}";
+
             $answer = null;
             try {
                 if (function_exists('Laravel\Prompts\text')) {
-                    $answer = \Laravel\Prompts\text("  {$comp} path", default: $display, hint: "e.g. app/Repositories/Admin");
+                    $answer = \Laravel\Prompts\text("  {$comp} path", default: $display, hint: $hint);
                 } else {
-                    $answer = $this->ask("  {$comp} path", $display);
+                    $answer = $this->ask("  {$comp} path ({$hint})", $display);
                 }
             } catch (\Throwable) {
                 continue;
