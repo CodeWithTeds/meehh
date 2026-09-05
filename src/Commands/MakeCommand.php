@@ -37,6 +37,8 @@ class MakeCommand extends Command
                             {--except= : Comma-separated list of components to exclude}
                             {--paths= : Comma-separated custom paths, e.g. repository=app/Repositories/Admin,model=app/Domain/Models}
                             {--module= : Module prefix, e.g. Admin → app/Modules/Admin/...}
+                            {--api : API preset — generates JSON Resource controller + Service/Repository (thin controller)}
+                            {--web : Web preset — generates web controller preset}
                             {--force : Overwrite existing files}';
 
     protected $description = 'Generate Laravel CRUD artifacts from a migration or ERD';
@@ -53,17 +55,30 @@ class MakeCommand extends Command
         'test',
     ];
 
+    private const API_PRESET = ['model','migration','request','resource','controller','service','repository','policy','test'];
+    private const WEB_PRESET = ['model','migration','request','resource','controller','service','repository','policy','test'];
+
     public function handle(
         MigrationParser $migrationParser,
         ErdParser $erdParser,
         StubRenderer $stubs,
         FileWriter $writer,
     ): int {
-        $name = (string) $this->argument('name');
+        $rawName = (string) $this->argument('name');
+        if (str_contains($rawName, '/') || str_contains($rawName, '\\') || str_ends_with(strtolower($rawName), '.php')) {
+            $base = basename(str_replace('\\', '/', $rawName));
+            $base = preg_replace('/\.php$/i', '', $base) ?? $base;
+            $base = preg_replace('/Test$/i', '', $base) ?? $base;
+            $this->components->warn("Interpreting [{$rawName}] as model [{$base}].");
+            $rawName = $base;
+        }
+        $name = $rawName;
         $from = $this->option('from');
         $only = $this->option('only');
         $except = $this->option('except');
         $force = (bool) $this->option('force');
+        $isApi = (bool) $this->option('api');
+        $isWeb = (bool) $this->option('web');
 
         // Validate name first so banner can show canonical model name
         try {
@@ -76,6 +91,10 @@ class MakeCommand extends Command
         // Clear previous runtime path overrides
         GoatConfig::clear();
 
+        if ($isApi && $isWeb) {
+            $this->components->error('Cannot use --api and --web together.');
+            return self::FAILURE;
+        }
         // Handle --paths / --module early (so they affect path resolution and banner hints)
         $pathsOption = $this->option('paths');
         $moduleOption = $this->option('module');
@@ -89,6 +108,16 @@ class MakeCommand extends Command
 
         // Modern banner: image (meeeh.png) on the left, intro card on the right
         $this->displayHeader($modelName);
+        if ($isApi || $isWeb) {
+            $preset = $isApi ? 'API' : 'Web';
+            $presetComponents = $isApi ? self::API_PRESET : self::WEB_PRESET;
+            $this->line('');
+            $this->line("  <fg=green>✓</> <fg=white>{$preset} preset</> enabled — " . ($isApi ? 'JSON Resource + Service/Repository' : 'Web controller preset'));
+            $this->line("  <fg=gray>Preset components:</> " . implode(', ', $presetComponents));
+            if ($only === null && $except === null) {
+                $this->line("  <fg=gray>Tip:</> combine with --only/--except or --paths=test=tests/Feature for tests/Feature/InventoryTest.php</>");
+            }
+        }
 
         // Validate --only / --except
         $onlyList = $this->parseListOption($only);
