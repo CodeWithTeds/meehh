@@ -1,5 +1,5 @@
 {
-    "name": "goat/laravel-goat",
+    "name": "meehh/laravel-goat",
     "description": "Terminal-first Laravel feature generator — template & boilerplate for full feature slices (Model, Requests, Resources, Service, Repository, Policy, Tests) from a single migration or ERD. Not just CRUD.",
     "keywords": [
         "laravel",
@@ -14,10 +14,21 @@
     ],
     "type": "library",
     "license": "MIT",
+    "homepage": "https://github.com/CodeWithTeds/meehh",
+    "support": {
+        "issues": "https://github.com/CodeWithTeds/meehh/issues",
+        "source": "https://github.com/CodeWithTeds/meehh",
+        "docs": "https://github.com/CodeWithTeds/meehh#readme"
+    },
     "authors": [
         {
-            "name": "GOAT Contributors",
-            "email": "hello@goat.dev"
+            "name": "Prof Alex Software Dev",
+            "homepage": "https://github.com/CodeWithTeds/meehh",
+            "role": "Owner / TE-AD"
+        },
+        {
+            "name": "TE-AD",
+            "homepage": "https://github.com/CodeWithTeds/meehh"
         }
     ],
     "require": {

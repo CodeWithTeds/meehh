@@ -11,9 +11,10 @@
 [![Tests 40/40](https://img.shields.io/badge/tests-40%2F40-brightgreen?style=flat-square)](tests)
 [![License MIT](https://img.shields.io/badge/license-MIT-black?style=flat-square)](LICENSE)
 [![Local First](https://img.shields.io/badge/AI-free%20%E2%80%A2%20local--first-0ea5e9?style=flat-square)](#)
-[![Version v1.0.0](https://img.shields.io/badge/version-v1.0.0-111827?style=flat-square)](https://github.com/CodeWithTeds/laravel-goat/releases)
+[![Version v1.0.0](https://img.shields.io/badge/version-v1.0.0-111827?style=flat-square)](https://github.com/CodeWithTeds/meehh/releases)
+[![Owner Prof Alex / TE-AD](https://img.shields.io/badge/owner-Prof%20Alex%20%2F%20TE--AD-0ea5e9?style=flat-square)](https://github.com/CodeWithTeds/meehh)
 
-*Not just CRUD. Generate a complete, production-ready feature in 2 seconds.*
+> **Your schema is already there. Why build around it manually when the structure you've already defined could be the starting point for everything that comes next?**
 
 ```bash
 php artisan goat:make Product
@@ -101,7 +102,7 @@ Use it as:
 ### ⚡ 10 seconds to first feature
 
 ```bash
-composer require goat/laravel-goat --dev
+composer require meehh/laravel-goat --dev
 php artisan goat:make Product
 ```
 
@@ -279,10 +280,10 @@ Covers: migration/ERD parsing, columns, relationships, naming, 9 generators, CLI
 ### 📦 Install (GitHub)
 
 ```bash
-composer config repositories.goat vcs https://github.com/CodeWithTeds/laravel-goat.git
-composer require goat/laravel-goat:@dev --dev
+composer config repositories.goat vcs https://github.com/CodeWithTeds/meehh.git
+composer require meehh/laravel-goat:@dev --dev
 ```
-Once on Packagist: `composer require goat/laravel-goat --dev`
+Once on Packagist: `composer require meehh/laravel-goat --dev`
 
 Requires `PHP ^8.3` · `Laravel 11|12|13`
 
@@ -300,6 +301,6 @@ PRs welcome. Build your next feature with `php artisan goat:make`.
 
 **Built for builders who ship features, not boilerplate.**
 
-MIT · [Report issue](https://github.com/CodeWithTeds/laravel-goat/issues) · `php artisan goat:make`
+MIT · Owned by **Prof Alex Software Dev / TE-AD** · [github.com/CodeWithTeds/meehh](https://github.com/CodeWithTeds/meehh) · [Report issue](https://github.com/CodeWithTeds/meehh/issues) · `php artisan goat:make`
 
 </div>
