@@ -1,5 +1,9 @@
 <div align="center">
 
+<p>
+  <img src="images/meeeh.png" alt="GOAT — meeeh" width="320">
+</p>
+
 # 🐐 GOAT
 
 ### Terminal-first Laravel *Feature* Generator
