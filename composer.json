@@ -1,5 +1,5 @@
 {
-    "name": "goat/laravel-goat",
+    "name": "meehh/laravel-goat",
     "description": "Terminal-first Laravel feature generator — template & boilerplate for full feature slices (Model, Requests, Resources, Service, Repository, Policy, Tests) from a single migration or ERD. Not just CRUD.",
     "keywords": [
         "laravel",
