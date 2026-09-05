@@ -1,14 +1,23 @@
 <div align="center">
 
-<p>
+<table>
+<tr>
+<td width="340" align="center" valign="middle">
   <img src="images/meeeh.png" alt="GOAT — meeeh" width="320">
-</p>
+</td>
+<td align="left" valign="middle">
 
 # 🐐 GOAT
 
 ### Terminal-first Laravel *Feature* Generator
 
 **Template · Boilerplate · Feature Slice — from a single migration or ERD**
+
+> 🐐 **Your schema is already there. Why build around it manually when the structure you've already defined could be the starting point for everything that comes next?**
+
+</td>
+</tr>
+</table>
 
 [![PHP ^8.3](https://img.shields.io/badge/PHP-^8.3-777BB4?style=flat-square&logo=php&logoColor=white)](https://php.net)
 [![Laravel 11|12|13](https://img.shields.io/badge/Laravel-11%20|%2012%20|%2013-FF2D20?style=flat-square&logo=laravel&logoColor=white)](https://laravel.com)
@@ -17,8 +26,6 @@
 [![Local First](https://img.shields.io/badge/AI-free%20%E2%80%A2%20local--first-0ea5e9?style=flat-square)](#)
 [![Version v1.0.0](https://img.shields.io/badge/version-v1.0.0-111827?style=flat-square)](https://github.com/CodeWithTeds/meehh/releases)
 [![Owner Prof Alex / TE-AD](https://img.shields.io/badge/owner-Prof%20Alex%20%2F%20TE--AD-0ea5e9?style=flat-square)](https://github.com/CodeWithTeds/meehh)
-
-> 🐐 **Your schema is already there. Why build around it manually when the structure you've already defined could be the starting point for everything that comes next?**
 
 ```bash
 php artisan goat:make Product
