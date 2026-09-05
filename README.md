@@ -14,7 +14,7 @@
 [![Version v1.0.0](https://img.shields.io/badge/version-v1.0.0-111827?style=flat-square)](https://github.com/CodeWithTeds/meehh/releases)
 [![Owner Prof Alex / TE-AD](https://img.shields.io/badge/owner-Prof%20Alex%20%2F%20TE--AD-0ea5e9?style=flat-square)](https://github.com/CodeWithTeds/meehh)
 
-> **Your schema is already there. Why build around it manually when the structure you've already defined could be the starting point for everything that comes next?**
+> 🐐 **Your schema is already there. Why build around it manually when the structure you've already defined could be the starting point for everything that comes next?**
 
 ```bash
 php artisan goat:make Product
