@@ -330,6 +330,10 @@ Once on Packagist: `composer require meehh/laravel-goat --dev`
 
 Requires `PHP ^8.3` · `Laravel 11|12|13`
 
+### 🤖 Laravel Boost
+
+GOAT ships a `laravel-goat-development` skill for [Laravel Boost](https://laravel.com/docs/boost). When GOAT and Boost are installed in a Laravel application, run Boost setup with skills enabled and select `meehh/laravel-goat`; Boost discovers the skill from the package and installs it for the selected agent. Use `php artisan boost:list-skills` to verify that it is available, and use `php artisan boost:update` after a normal Boost setup when refreshing package guidance. This is optional developer tooling; GOAT itself remains local-first and has no runtime AI dependency. The skill teaches agents to use GOAT safely and to review generated scaffolding before considering a feature complete.
+
 ---
 
 ### 🗺️ Roadmap
