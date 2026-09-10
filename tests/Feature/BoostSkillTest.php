@@ -53,4 +53,17 @@ final class BoostSkillTest extends BaseTestCase
         $this->assertStringContainsString('should not run a bare interactive `php artisan goat:make Product` command', $contents);
         $this->assertStringContainsString('explicit STDIN heredoc', $contents);
     }
+
+    public function test_goat_skill_preserves_the_full_architecture_by_default(): void
+    {
+        $skillFile = dirname(__DIR__, 2).'/resources/boost/skills/laravel-goat-development/SKILL.md';
+        $contents = file_get_contents($skillFile);
+
+        $this->assertIsString($contents);
+        $this->assertStringContainsString('A default run generates the complete feature slice', $contents);
+        $this->assertStringContainsString('do not silently remove them', $contents);
+        $this->assertStringContainsString('preserve the full component set', $contents);
+        $this->assertStringContainsString('do not replace GOAT\'s components with unrelated Laravel generators', $contents);
+        $this->assertStringContainsString('When the user asks for the complete GOAT architecture, omit both flags', $contents);
+    }
 }

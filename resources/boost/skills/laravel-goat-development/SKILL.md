@@ -9,7 +9,7 @@ description: Use GOAT for migration- or ERD-driven Laravel feature scaffolding w
 
 Use this skill when the application has `meehh/laravel-goat` installed, or when the user explicitly asks about GOAT, and the task involves generating a Laravel feature from a migration or ERD.
 
-GOAT generates a feature scaffold, not a complete production feature. Its standard output can include a model, migration, Store and Update form requests, JSON resource, controller, service, repository, policy, and feature test.
+GOAT generates a feature scaffold, not a complete production feature. A default run generates the complete feature slice: model, migration, Store and Update form requests, JSON resource, controller, service, repository, policy, and feature test.
 
 ## Inspect the application first
 
@@ -21,7 +21,7 @@ Before generating anything, inspect:
 - published stubs under `resources/stubs/vendor/goat/`, if present
 - existing migrations, routes, factories, policies, and tests
 
-Follow the application's established structure. Do not introduce modules, services, repositories, or API conventions merely because GOAT can generate them.
+Follow the application's established paths, namespaces, naming, and integration conventions. GOAT's Service, Repository, Resource, Controller, Policy, and Test components are part of its core feature-slice architecture; do not silently remove them just because the application does not currently use those layers. If the user explicitly asks for GOAT or a complete feature slice, preserve the full component set unless the user requests a subset. If an architectural mismatch is a concern, explain it and ask before narrowing the generation. Do not introduce a separate module or unrelated application-wide architecture merely because GOAT can generate one.
 
 ## Agent workflow and schema gathering
 
@@ -31,6 +31,7 @@ Use this decision flow before invoking GOAT:
 2. If the schema is missing or ambiguous, ask focused questions about the model/table name, columns and database types, primary key, nullability, defaults, indexes, unique constraints, foreign keys, timestamps, soft deletes, and required generated components. Do not invent business-critical columns or constraints.
 3. Summarize the resulting schema and any assumptions. In planning mode, show the proposed input and command but do not run `goat:make`; wait for implementation authorization when the agent's workflow requires it.
 4. During execution, provide the confirmed schema to GOAT through an existing file, a temporary input file, or an explicit STDIN heredoc. Do not ask the user to paste schema manually into a terminal.
+5. Unless the user requests selected artifacts, plan a full GOAT feature slice. Adapt destinations and namespaces to the application, but do not replace GOAT's components with unrelated Laravel generators or reduce the component list silently.
 
 Agents should not run a bare interactive `php artisan goat:make Product` command as an automated step. That form can block while waiting for the user to choose an input source and send EOF. Prefer explicit `--from` values and non-interactive input.
 
@@ -81,6 +82,8 @@ php artisan goat:make Product --from=path/to/migration.php --except=migration,po
 ```
 
 Do not combine `--only` and `--except`; keep the requested component set unambiguous.
+
+When the user asks for the complete GOAT architecture, omit both flags. Use `--only` or `--except` only when the user explicitly requests a subset, an existing artifact should be preserved, or a specific project constraint requires an exclusion that the user has accepted.
 
 ## Paths and modules
 
