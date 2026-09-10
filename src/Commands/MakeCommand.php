@@ -21,6 +21,7 @@ use Goat\Support\FileWriter;
 use Goat\Support\GoatBanner;
 use Goat\Support\GoatConfig;
 use Goat\Support\NameResolver;
+use Goat\Support\PathDetector;
 use Goat\Support\StubRenderer;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
@@ -726,12 +727,43 @@ class MakeCommand extends Command
 
     private function promptCustomPaths(array $components): void
     {
-        // Check if interactive and user wants to customize
+        // Exclude model and migration from folder selection (per user request)
+        $eligible = array_values(array_filter($components, fn ($c) => ! in_array($c, ['model', 'migration'], true)));
+        if (empty($eligible)) {
+            return;
+        }
+
+        $detector = new PathDetector(new Filesystem());
+
+        // Pre-scan and show detected subfolders for each eligible component
+        $this->line('');
+        $this->line('<fg=gray>Scanning codebase for subfolders...</>');
+
+        $hasAny = false;
+        foreach ($eligible as $comp) {
+            $base = $this->resolveComponentBasePath($comp);
+            $display = $this->displayRelative($base);
+            $available = $detector->discover($base, 2);
+            if (! empty($available)) {
+                $hasAny = true;
+                $names = array_keys($available);
+                $shown = count($names) > 5 ? implode(', ', array_slice($names, 0, 5)) . ', …' : implode(', ', $names);
+                $this->line("  <fg=cyan>{$comp}</> <fg=gray>{$display}</> <fg=green>→ {$shown}</>");
+            } else {
+                $this->line("  <fg=cyan>{$comp}</> <fg=gray>{$display}</> <fg=gray>(no subfolders)</>");
+            }
+        }
+
+        if (! $hasAny) {
+            $this->line("  <fg=gray>Tip: Create subfolders like app/Http/Controllers/Admin — GOAT will detect them automatically.</>");
+        }
+
+        // Ask if user wants to customize
         try {
             if (function_exists('Laravel\Prompts\confirm')) {
-                $want = \Laravel\Prompts\confirm('Customize output paths? (e.g., repo/admin)', default: false);
+                $want = \Laravel\Prompts\confirm('Customize output folders? (e.g., Admin, Staff)', default: false);
             } else {
-                $want = $this->confirm('Customize output paths?', false);
+                $want = $this->confirm('Customize output folders?', false);
             }
         } catch (\Throwable) {
             return;
@@ -742,71 +774,100 @@ class MakeCommand extends Command
         }
 
         $custom = [];
-        foreach ($components as $comp) {
-            $current = GoatConfig::string("goat.paths.{$comp}", '');
-            if ($current === '') {
-                $current = match ($comp) {
-                    'model' => function_exists('app_path') ? (function(){ try{ return \app_path('Models'); } catch(\Throwable){return 'app/Models';}})() : 'app/Models',
-                    'repository' => function_exists('app_path') ? (function(){ try{ return \app_path('Repositories'); } catch(\Throwable){return 'app/Repositories';}})() : 'app/Repositories',
-                    'service' => function_exists('app_path') ? (function(){ try{ return \app_path('Services'); } catch(\Throwable){return 'app/Services';}})() : 'app/Services',
-                    'controller' => function_exists('app_path') ? (function(){ try{ return \app_path('Http/Controllers'); } catch(\Throwable){return 'app/Http/Controllers';}})() : 'app/Http/Controllers',
-                    'request' => function_exists('app_path') ? (function(){ try{ return \app_path('Http/Requests'); } catch(\Throwable){return 'app/Http/Requests';}})() : 'app/Http/Requests',
-                    'resource' => function_exists('app_path') ? (function(){ try{ return \app_path('Http/Resources'); } catch(\Throwable){return 'app/Http/Resources';}})() : 'app/Http/Resources',
-                    'policy' => function_exists('app_path') ? (function(){ try{ return \app_path('Policies'); } catch(\Throwable){return 'app/Policies';}})() : 'app/Policies',
-                    'migration' => function_exists('database_path') ? (function(){ try{ return \database_path('migrations'); } catch(\Throwable){return 'database/migrations';}})() : 'database/migrations',
-                    'test' => function_exists('base_path') ? (function(){ try{ return \base_path('tests/Feature'); } catch(\Throwable){return 'tests/Feature';}})() : 'tests/Feature',
-                    default => $comp,
-                };
-                $display = $current;
-                if (function_exists('base_path')) {
-                    try {
-                        $base = \base_path();
-                        if (str_starts_with($current, $base)) {
-                            $display = ltrim(substr($current, strlen($base)), '/');
-                        }
-                    } catch (\Throwable) {}
-                }
-            } else {
-                $display = $current;
-                if (function_exists('base_path')) {
-                    try {
-                        $base = \base_path();
-                        if (str_starts_with($display, $base)) {
-                            $display = ltrim(substr($display, strlen($base)), '/');
-                        }
-                    } catch (\Throwable) {}
-                }
+
+        foreach ($eligible as $comp) {
+            $base = $this->resolveComponentBasePath($comp);
+            $displayBase = $this->displayRelative($base);
+            $available = $detector->discover($base, 2);
+
+            // Build selectable options
+            $options = [];
+            $options['__default__'] = "Default — {$displayBase} (no subfolder)";
+            foreach ($available as $rel => $abs) {
+                $relDisplay = $displayBase . '/' . $rel;
+                $options[$rel] = "{$rel} — {$relDisplay}";
             }
+            $options['__new__'] = '➕ New subfolder...';
+            $options['__custom__'] = '✎  Custom path...';
 
-            $example = match ($comp) {
-                'model' => 'app/Models or app/admin/Models',
-                'repository' => 'app/Repositories/Admin or app/admin/Repositories',
-                'service' => 'app/Services/Admin',
-                'controller' => 'app/Http/Controllers/Admin',
-                'request' => 'app/Http/Requests/Admin',
-                'resource' => 'app/Http/Resources/Admin',
-                'policy' => 'app/Policies/Admin',
-                'migration' => 'database/migrations',
-                'test' => 'tests/Feature/Admin',
-                default => 'app/' . Str::studly($comp),
-            };
-            $hint = "Leave empty to keep default. Example: {$example}";
+            $hint = empty($available)
+                ? "No subfolders found — choose New or Custom | Default: {$displayBase}"
+                : 'Found: ' . implode(', ', array_keys($available)) . " | Default: {$displayBase}";
 
-            $answer = null;
+            $choice = null;
             try {
-                if (function_exists('Laravel\Prompts\text')) {
-                    $answer = \Laravel\Prompts\text("  {$comp} path", default: $display, hint: $hint);
+                if (function_exists('Laravel\Prompts\select')) {
+                    $choice = \Laravel\Prompts\select(
+                        label: "Where should {$comp} be generated?",
+                        options: $options,
+                        default: '__default__',
+                        hint: $hint,
+                    );
                 } else {
-                    $answer = $this->ask("  {$comp} path ({$hint})", $display);
+                    $choiceLabel = $this->choice("Where should {$comp} be generated?", array_values($options), 0);
+                    $choiceKey = array_search($choiceLabel, $options, true);
+                    $choice = $choiceKey !== false ? $choiceKey : '__default__';
                 }
             } catch (\Throwable) {
+                continue; // skip on cancel
+            }
+
+            if ($choice === '__default__' || $choice === null) {
                 continue;
             }
 
-            $answer = trim((string) $answer);
-            if ($answer !== '' && $answer !== $display) {
-                $custom[$comp] = $answer;
+            if ($choice === '__new__') {
+                $sub = null;
+                try {
+                    if (function_exists('Laravel\Prompts\text')) {
+                        $sub = \Laravel\Prompts\text(
+                            label: "New subfolder for {$comp}",
+                            placeholder: 'e.g. Admin or Admin/Api',
+                            hint: "Will be created under {$displayBase}",
+                        );
+                    } else {
+                        $sub = $this->ask("New subfolder for {$comp} (under {$displayBase})");
+                    }
+                } catch (\Throwable) {
+                    continue;
+                }
+                $sub = trim((string) $sub);
+                if ($sub === '') {
+                    continue;
+                }
+                $sub = trim($sub, '/\\');
+                $abs = rtrim($base, '/') . '/' . $sub;
+                $custom[$comp] = $abs;
+                continue;
             }
+
+            if ($choice === '__custom__') {
+                $answer = null;
+                try {
+                    if (function_exists('Laravel\Prompts\text')) {
+                        $answer = \Laravel\Prompts\text(
+                            label: "  {$comp} path",
+                            default: $displayBase,
+                            hint: 'Enter full path e.g. app/Http/Controllers/Admin',
+                        );
+                    } else {
+                        $answer = $this->ask("  {$comp} path", $displayBase);
+                    }
+                } catch (\Throwable) {
+                    continue;
+                }
+                $answer = trim((string) $answer);
+                if ($answer !== '' && $answer !== $displayBase) {
+                    $abs = $this->resolveAbsolutePath($answer);
+                    $custom[$comp] = $abs;
+                }
+                continue;
+            }
+
+            // Detected subfolder selected — key is relative path (e.g. Admin or Admin/Api)
+            $rel = (string) $choice;
+            $abs = $available[$rel] ?? rtrim($base, '/') . '/' . ltrim($rel, '/');
+            $custom[$comp] = $abs;
         }
 
         if (! empty($custom)) {
@@ -816,11 +877,67 @@ class MakeCommand extends Command
             }
             $this->applyCustomPaths(implode(',', $pairs), null);
             $this->line('');
-            $this->components->info('Custom paths applied:');
+            $this->components->info('Custom folders applied:');
             foreach ($custom as $k => $v) {
-                $this->line("  <fg=gray>{$k} → {$v}</>");
+                $rel = $this->displayRelative($v);
+                $this->line("  <fg=gray>{$k} → {$rel}</>");
+            }
+        } else {
+            $this->line('');
+            $this->line('<fg=gray>No custom folders selected — using defaults.</>');
+        }
+    }
+
+    private function resolveComponentBasePath(string $component): string
+    {
+        $configured = GoatConfig::string("goat.paths.{$component}", '');
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        return match ($component) {
+            'model' => function_exists('app_path') ? (function () { try { return \app_path('Models'); } catch (\Throwable) { return 'app/Models'; } })() : 'app/Models',
+            'repository' => function_exists('app_path') ? (function () { try { return \app_path('Repositories'); } catch (\Throwable) { return 'app/Repositories'; } })() : 'app/Repositories',
+            'service' => function_exists('app_path') ? (function () { try { return \app_path('Services'); } catch (\Throwable) { return 'app/Services'; } })() : 'app/Services',
+            'controller' => function_exists('app_path') ? (function () { try { return \app_path('Http/Controllers'); } catch (\Throwable) { return 'app/Http/Controllers'; } })() : 'app/Http/Controllers',
+            'request' => function_exists('app_path') ? (function () { try { return \app_path('Http/Requests'); } catch (\Throwable) { return 'app/Http/Requests'; } })() : 'app/Http/Requests',
+            'resource' => function_exists('app_path') ? (function () { try { return \app_path('Http/Resources'); } catch (\Throwable) { return 'app/Http/Resources'; } })() : 'app/Http/Resources',
+            'policy' => function_exists('app_path') ? (function () { try { return \app_path('Policies'); } catch (\Throwable) { return 'app/Policies'; } })() : 'app/Policies',
+            'migration' => function_exists('database_path') ? (function () { try { return \database_path('migrations'); } catch (\Throwable) { return 'database/migrations'; } })() : 'database/migrations',
+            'test' => function_exists('base_path') ? (function () { try { return \base_path('tests/Feature'); } catch (\Throwable) { return 'tests/Feature'; } })() : 'tests/Feature',
+            default => $component,
+        };
+    }
+
+    private function displayRelative(string $absolute): string
+    {
+        $display = $absolute;
+        if (function_exists('base_path')) {
+            try {
+                $base = \base_path();
+                if ($base !== '' && str_starts_with($display, rtrim($base, '/'))) {
+                    $display = ltrim(substr($display, strlen(rtrim($base, '/'))), '/');
+                }
+            } catch (\Throwable) {}
+        }
+        if ($display === $absolute) {
+            $cwd = getcwd();
+            if ($cwd && str_starts_with($display, rtrim($cwd, '/'))) {
+                $display = ltrim(substr($display, strlen(rtrim($cwd, '/'))), '/');
             }
         }
+        // Fallback for absolute outside base/cwd (e.g., temp): try to show from app/ marker
+        if ($display === $absolute && (str_starts_with($display, '/') || preg_match('/^[A-Za-z]:[\\\\\\/]/', $display))) {
+            foreach (['app/', 'tests/', 'database/'] as $marker) {
+                $pos = strpos($display, $marker);
+                if ($pos !== false) {
+                    $display = substr($display, $pos);
+                    break;
+                }
+            }
+        }
+
+        return $display !== '' ? $display : $absolute;
     }
 
     private function resolveAbsolutePath(string $path): string
@@ -857,8 +974,31 @@ class MakeCommand extends Command
         if ($cwd && str_starts_with($p, $cwd)) {
             $p = ltrim(substr($p, strlen($cwd)), '/');
         }
+
+        // Fallback for absolute paths outside base/cwd (e.g., temp dirs in tests):
+        // try to extract from known markers like app/, tests/, database/
+        if (str_starts_with($p, '/') || preg_match('/^[A-Za-z]:[\\\\\\/]/', $p)) {
+            $markers = ['/app/', 'app/', '/tests/', 'tests/', '/database/', 'database/'];
+            foreach ($markers as $marker) {
+                $pos = strpos($p, trim($marker, '/') . '/');
+                if ($pos !== false) {
+                    $p = substr($p, $pos);
+                    break;
+                }
+            }
+            // If still absolute, strip leading slash
+            $p = ltrim($p, '/');
+            // If still contains absolute prefix like var/folders, try to find app segment
+            if (str_contains($p, 'app/')) {
+                $p = substr($p, (int) strpos($p, 'app/'));
+            }
+        }
+
         // Now p is like app/Modules/Admin/Models or app/Repositories or repo/admin
         $p = trim($p, '/');
+        if ($p === '') {
+            return 'App';
+        }
         // Split and studly each segment, but handle well-known prefixes
         $segments = explode('/', str_replace('\\', '/', $p));
         $segments = array_map(fn ($s) => Str::studly($s), $segments);
